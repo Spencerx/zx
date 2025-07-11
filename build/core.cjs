@@ -421,8 +421,6 @@ var defaults = resolveDefaults({
   stdio: "pipe",
   nothrow: false,
   quiet: false,
-  prefix: "",
-  postfix: "",
   detached: false,
   preferLocal: false,
   spawn: import_node_child_process.spawn,
@@ -635,6 +633,7 @@ var _ProcessPromise = class _ProcessPromise extends Promise {
   }
   abort(reason) {
     var _a, _b;
+    if (this.isSettled()) throw new Error("Too late to abort the process.");
     if (this.signal !== ((_a = this._snapshot.ac) == null ? void 0 : _a.signal))
       throw new Error("The signal is controlled by another process.");
     if (!this.child)
@@ -642,6 +641,7 @@ var _ProcessPromise = class _ProcessPromise extends Promise {
     (_b = this._zurk) == null ? void 0 : _b.ac.abort(reason);
   }
   kill(signal = $.killSignal) {
+    if (this.isSettled()) throw new Error("Too late to kill the process.");
     if (!this.child)
       throw new Error("Trying to kill a process without creating one.");
     if (!this.child.pid) throw new Error("The process pid is undefined.");
@@ -665,7 +665,7 @@ var _ProcessPromise = class _ProcessPromise extends Promise {
     return this._command;
   }
   get fullCmd() {
-    return this._snapshot.prefix + this.cmd + this._snapshot.postfix;
+    return (this._snapshot.prefix || "") + this.cmd + (this._snapshot.postfix || "");
   }
   get child() {
     var _a;
@@ -968,7 +968,11 @@ function useBash() {
   $.quote = import_util.quote;
 }
 try {
+  const { shell, prefix, postfix } = $;
   useBash();
+  if ((0, import_util.isString)(shell)) $.shell = shell;
+  if ((0, import_util.isString)(prefix)) $.prefix = prefix;
+  if ((0, import_util.isString)(postfix)) $.postfix = postfix;
 } catch (err) {
 }
 function checkShell() {

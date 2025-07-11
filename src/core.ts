@@ -116,8 +116,8 @@ export interface Options {
   env:            NodeJS.ProcessEnv
   shell:          string | true
   nothrow:        boolean
-  prefix:         string
-  postfix:        string
+  prefix?:        string
+  postfix?:       string
   quote?:         typeof quote
   quiet:          boolean
   detached:       boolean
@@ -143,8 +143,6 @@ export const defaults: Options = resolveDefaults({
   stdio:          'pipe',
   nothrow:        false,
   quiet:          false,
-  prefix:         '',
-  postfix:        '',
   detached:       false,
   preferLocal:    false,
   spawn,
@@ -437,9 +435,9 @@ export class ProcessPromise extends Promise<ProcessOutput> {
   }
 
   abort(reason?: string) {
+    if (this.isSettled()) throw new Error('Too late to abort the process.')
     if (this.signal !== this._snapshot.ac?.signal)
       throw new Error('The signal is controlled by another process.')
-
     if (!this.child)
       throw new Error('Trying to abort a process without creating one.')
 
@@ -447,6 +445,7 @@ export class ProcessPromise extends Promise<ProcessOutput> {
   }
 
   kill(signal = $.killSignal): Promise<void> {
+    if (this.isSettled()) throw new Error('Too late to kill the process.')
     if (!this.child)
       throw new Error('Trying to kill a process without creating one.')
     if (!this.child.pid) throw new Error('The process pid is undefined.')
@@ -475,7 +474,9 @@ export class ProcessPromise extends Promise<ProcessOutput> {
   }
 
   get fullCmd(): string {
-    return this._snapshot.prefix + this.cmd + this._snapshot.postfix
+    return (
+      (this._snapshot.prefix || '') + this.cmd + (this._snapshot.postfix || '')
+    )
   }
 
   get child(): ChildProcess | undefined {
@@ -877,7 +878,11 @@ export function useBash() {
 }
 
 try {
+  const { shell, prefix, postfix } = $
   useBash()
+  if (isString(shell)) $.shell = shell
+  if (isString(prefix)) $.prefix = prefix
+  if (isString(postfix)) $.postfix = postfix
 } catch (err) {}
 
 function checkShell() {
